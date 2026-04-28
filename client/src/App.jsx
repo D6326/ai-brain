@@ -6,7 +6,7 @@ import RecordForm from './components/RecordForm';
 import RecordList from './components/RecordList';
 import AIChat from './components/AIChat';
 
-const API_URL = 'http://localhost:3001/api';
+const API_URL = 'https://ai-brain-xs9i.onrender.com';
 
 export default function App() {
   const [records, setRecords] = useState([]);
