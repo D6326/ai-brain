@@ -1,29 +1,57 @@
-/**
- * AI 伪接口模块
- * 后期只需替换此文件内的逻辑为真实 LLM API（如 OpenAI、通义千问、Kimi 等）
- */
+const OpenAI = require('openai');
 
-// 1. 自动处理新增记录：生成摘要 + 标签
-function callAI(content) {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      // 模拟 AI 分析过程
-      const summary = content.length > 60 ? content.slice(0, 60) + '...' : content;
-      const tags = ['AI工具', '效率提升', 'Prompt', '知识库', '灵感'].slice(0, 3 + Math.floor(Math.random() * 3));
-      resolve({ summary, tags });
-    }, 800); // 模拟网络延迟
-  });
+// 从环境变量读取 Key，保护安全
+const client = new OpenAI({
+  apiKey: process.env.DASHSCOPE_API_KEY,
+  baseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+});
+
+/**
+ * 1. 自动处理新增记录：让千问生成摘要 + 标签
+ */
+async function callAI(content) {
+  try {
+    const response = await client.chat.completions.create({
+      model: "qwen-plus", // 通义千问主流模型
+      messages: [
+        {
+          role: "system",
+          content: "你是一个智能笔记助手。请为用户提供的内容生成一段100字以内的摘要，并提取3-5个简短的关键词标签。请严格按 JSON 格式返回：{\"summary\": \"...\", \"tags\": [\"...\", \"...\"]}"
+        },
+        { role: "user", content: content }
+      ],
+      response_format: { type: "json_object" } // 强制输出 JSON
+    });
+
+    return JSON.parse(response.choices[0].message.content);
+  } catch (error) {
+    console.error("千问摘要生成失败:", error);
+    // 报错时的兜底处理，保证数据库不崩
+    return { summary: content.slice(0, 50) + "...", tags: ["自动生成"] };
+  }
 }
 
-// 2. AI 问答接口：基于全量记录上下文回答
-function callAIChat(question, context) {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      // 模拟 AI 结合知识库回答
-      const answer = `🤖 AI模拟回答：\n针对你的问题“${question}”，我检索了你的知识库。\n\n📖 参考上下文片段：\n${context.slice(0, 300)}...\n\n💡 提示：当前为伪接口。替换为真实 LLM API 后，将支持真正的语义理解与精准问答。`;
-      resolve(answer);
-    }, 1200);
-  });
+/**
+ * 2. AI 问答接口：基于全量记录上下文回答
+ */
+async function callAIChat(question, context) {
+  try {
+    const response = await client.chat.completions.create({
+      model: "qwen-plus",
+      messages: [
+        {
+          role: "system",
+          content: `你是一个基于个人知识库的AI助手。我会给你一些笔记内容作为背景信息，请根据这些信息回答问题。如果信息中没有相关内容，请礼貌地告知。背景信息如下：\n\n${context}`
+        },
+        { role: "user", content: question }
+      ],
+    });
+
+    return response.choices[0].message.content;
+  } catch (error) {
+    console.error("千问对话失败:", error);
+    return "🤖 抱歉，AI 大脑暂时卡壳了，请稍后再试。";
+  }
 }
 
 module.exports = { callAI, callAIChat };
