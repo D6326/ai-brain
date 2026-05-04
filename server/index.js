@@ -4,7 +4,16 @@ const db = require('./db');
 const { callAI, callAIChat } = require('./ai');
 
 const app = express();
-const PORT = 3001;
+const path = require('path');
+
+// 告诉 Express 去哪里找前端打包好的文件
+app.use(express.static(path.join(__dirname, '../client/dist')));
+
+// 让所有非 API 的请求都返回前端的 index.html
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../client/dist', 'index.html'));
+});
+const PORT = process.env.PORT || 3001;
 
 app.use(cors());
 app.use(express.json());
